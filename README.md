@@ -6,7 +6,6 @@ An elegant, native iOS application and Apple CarPlay integration for **BookOrbit
 
 [![Platform](https://img.shields.io/badge/Platform-iOS_15.0+-000000?style=flat-square&logo=apple&logoColor=white&color=black)](https://developer.apple.com/ios/)
 [![Swift](https://img.shields.io/badge/Swift-5.5+-F05138?style=flat-square&logo=swift&logoColor=white)](https://swift.org)
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg?style=flat-square&color=B461B3)](LICENSE)
 [![BookOrbit](https://img.shields.io/badge/Server-BookOrbit-blue?style=flat-square&color=4169E1)](https://github.com/bookorbit/bookorbit)
 
 </div>
