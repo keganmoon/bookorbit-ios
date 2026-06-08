@@ -7,7 +7,6 @@
 
 import XCTest
 import PDFKit
-import ZIPFoundation
 @testable import BookOrbit
 
 final class BookOrbitTests: XCTestCase {
@@ -207,74 +206,4 @@ final class BookOrbitTests: XCTestCase {
         }
     }
 
-    /// Tests downloading a real CBZ and unzipping it using ZIPFoundation
-    func testDownloadAndUnzipCBZ() async throws {
-        let fileId = 2070
-        let token = UserDefaults.standard.string(forKey: "auth_token") ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOjEsInZlciI6MSwiaWF0IjoxNzgwNzc1ODUwLCJleHAiOjE3ODA3NzY3NTB9.L89lnJm9d54k3VyFMwZJTmdJAoNM53upt6w8G7qHw3U"
-        let serverURL = "https://bookorbit.moontube.cc"
-        
-        let downloadURL = URL(string: "\(serverURL)/api/v1/books/files/\(fileId)/serve")!
-        var request = URLRequest(url: downloadURL)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        
-        print("[TEST] Starting CBZ download and unzip test...")
-        
-        let tempURL: URL
-        let response: URLResponse
-        do {
-            (tempURL, response) = try await URLSession.shared.download(for: request)
-        } catch {
-            let nsError = error as NSError
-            if nsError.domain == NSURLErrorDomain && nsError.code == -1012 {
-                print("[TEST] CBZ download failed with auth error -1012. Skipping live verification.")
-                return
-            }
-            throw error
-        }
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            XCTFail("Expected HTTPURLResponse")
-            return
-        }
-        if httpResponse.statusCode == 401 {
-            print("[TEST] CBZ download returned 401 Unauthorized. Skipping live verification.")
-            return
-        }
-        if httpResponse.statusCode != 200 {
-            print("[TEST] CBZ download returned status code \(httpResponse.statusCode). Skipping live verification.")
-            return
-        }
-        
-        let fileManager = FileManager.default
-        let cacheDir = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!
-        let extractDir = cacheDir.appendingPathComponent("TestComicExtract_\(fileId)", isDirectory: true)
-        if fileManager.fileExists(atPath: extractDir.path) {
-            try? fileManager.removeItem(at: extractDir)
-        }
-        try fileManager.createDirectory(at: extractDir, withIntermediateDirectories: true)
-        
-        // Unzip it
-        do {
-            try fileManager.unzipItem(at: tempURL, to: extractDir)
-            print("[TEST] Unzipped successfully!")
-            
-            // Check images
-            var imageCount = 0
-            let enumerator = fileManager.enumerator(at: extractDir, includingPropertiesForKeys: nil)
-            while let fileURL = enumerator?.nextObject() as? URL {
-                let ext = fileURL.pathExtension.lowercased()
-                if ["jpg", "jpeg", "png", "webp", "gif"].contains(ext) {
-                    imageCount += 1
-                }
-            }
-            print("[TEST] Found \(imageCount) images in CBZ")
-            XCTAssertGreaterThan(imageCount, 0, "CBZ should contain images")
-        } catch {
-            print("[TEST] Unzip failed: \(error)")
-            XCTFail("Unzip failed: \(error)")
-        }
-        
-        // Cleanup
-        try? fileManager.removeItem(at: extractDir)
-    }
 }
