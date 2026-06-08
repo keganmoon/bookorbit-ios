@@ -10,6 +10,12 @@ An elegant, native iOS application and Apple CarPlay integration for **BookOrbit
 
 </div>
 
+> [!IMPORTANT]
+> **Development & Local Building Only**
+> This repository is for local development, testing, and side-loading. It is **not** currently published to the Apple App Store (this documentation will be updated if/when an official App Store release happens).
+>
+> While **CarPlay functionality works out-of-the-box in the iOS Simulator**, running or testing CarPlay on a physical device or real car head unit requires a paid Apple Developer Account and a **CarPlay Entitlement** approved by Apple. See [CarPlay Entitlements & Provisioning](#carplay-entitlements--provisioning) below for details.
+
 ---
 
 ## What is BookOrbit iOS?
@@ -71,6 +77,22 @@ Under **Application Scene Manifest** in your `Info.plist` target settings:
 1. Ensure **Enable Multiple Windows** is set to `YES`.
 2. Under **Scene Configuration**, add **External Session Application Scene Session Role**.
 3. Declare `CarPlay` pointing to the delegate class: `$(PRODUCT_MODULE_NAME).CarPlaySceneDelegate`.
+
+### 4. CarPlay Entitlements & Provisioning
+To compile and test the app with CarPlay features, please note the difference between simulator and physical device testing:
+*   **iOS Simulator (No Entitlements Needed)**:
+    1. Run the app (`Cmd + R`) targeting an iOS Simulator.
+    2. In the Simulator window menu, go to **I/O > External Displays > CarPlay**.
+    3. A separate CarPlay display window will appear, letting you interact with the BookOrbit CarPlay template interface.
+*   **Physical Devices & Real Vehicles (Apple Entitlement Required)**:
+    Apple restricts CarPlay capabilities on physical devices. To build and run this app on an iPhone connected to a car dashboard via USB or Wireless CarPlay, you must obtain a CarPlay Audio App Entitlement:
+    1. **Apply to Apple**: Submit a request for the CarPlay Audio entitlement on the [Apple Developer Portal](https://developer.apple.com/contact/carplay/). Note that you must have a paid Apple Developer Program account.
+    2. **Add to Provisioning Profile**: Once approved, go to the Apple Developer Certificates, Identifiers & Profiles page, update your App ID configurations to enable the CarPlay capability, and regenerate your provisioning profile.
+    3. **Configure in Xcode**: Add the entitlement key to `BookOrbit.entitlements`:
+       ```xml
+       <key>com.apple.developer.carplay.audio</key>
+       <true/>
+       ```
 
 ---
 
