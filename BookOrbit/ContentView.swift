@@ -29,9 +29,7 @@ struct ContentView: View {
     
     // Document Reading States
     @State private var downloadError: String? = nil
-    @State private var activeEPUBFile: DocumentFileInfo? = nil
-    @State private var activeComicFile: DocumentFileInfo? = nil
-    @State private var activePDFFile: DocumentFileInfo? = nil
+    @State private var activeWebReaderFile: DocumentFileInfo? = nil
     @State private var activelyDownloadingFileId: Int? = nil
     @State private var isLoadingDetail = false
     @State private var detailError: String? = nil
@@ -146,14 +144,8 @@ struct ContentView: View {
         }
         .onAppear(perform: checkLoginStatus)
         .preferredColorScheme(preferredColorScheme)
-        .sheet(item: $activeEPUBFile) { fileInfo in
-            EPUBReaderView(fileId: fileInfo.fileId, filename: fileInfo.filename)
-        }
-        .sheet(item: $activeComicFile) { fileInfo in
-            ComicReaderView(fileId: fileInfo.fileId, filename: fileInfo.filename)
-        }
-        .sheet(item: $activePDFFile) { fileInfo in
-            PDFReaderView(fileId: fileInfo.fileId, filename: fileInfo.filename)
+        .sheet(item: $activeWebReaderFile) { fileInfo in
+            WebReaderSheetView(bookId: fileInfo.bookId, fileId: fileInfo.fileId, filename: fileInfo.filename)
         }
         .sheet(isPresented: $isShowingSettings) {
             SettingsView(
@@ -622,14 +614,8 @@ struct ContentView: View {
                 librarySearchText = "" // clear search when closing
             })
             .searchable(text: $librarySearchText, prompt: "Search in \(library.name)...")
-            .sheet(item: $activeEPUBFile) { fileInfo in
-                EPUBReaderView(fileId: fileInfo.fileId, filename: fileInfo.filename)
-            }
-            .sheet(item: $activeComicFile) { fileInfo in
-                ComicReaderView(fileId: fileInfo.fileId, filename: fileInfo.filename)
-            }
-            .sheet(item: $activePDFFile) { fileInfo in
-                PDFReaderView(fileId: fileInfo.fileId, filename: fileInfo.filename)
+            .sheet(item: $activeWebReaderFile) { fileInfo in
+                WebReaderSheetView(bookId: fileInfo.bookId, fileId: fileInfo.fileId, filename: fileInfo.filename)
             }
         }
     }
@@ -857,7 +843,8 @@ struct ContentView: View {
                             if !filename.lowercased().hasSuffix(".\(format)") {
                                 filename = "\(filename).\(format)"
                             }
-                            handleReadableFile(fileId: readableFile.fileId, filename: filename, format: format)
+                            let bookIdInt = Int(book.id) ?? 0
+                            handleReadableFile(bookId: bookIdInt, fileId: readableFile.fileId, filename: filename, format: format)
                         }) {
                             HStack(spacing: 12) {
                                 if activelyDownloadingFileId == readableFile.fileId {
@@ -989,7 +976,8 @@ struct ContentView: View {
                                         if !filename.lowercased().hasSuffix(".\(format)") {
                                             filename = "\(filename).\(format)"
                                         }
-                                        handleReadableFile(fileId: file.fileId, filename: filename, format: format)
+                                        let bookIdInt = Int(book.id) ?? 0
+                                        handleReadableFile(bookId: bookIdInt, fileId: file.fileId, filename: filename, format: format)
                                     }) {
                                         if activelyDownloadingFileId == file.fileId {
                                             ProgressView()
@@ -1270,15 +1258,11 @@ struct ContentView: View {
         return previewDir.appendingPathComponent(filename)
     }
     
-    private func handleReadableFile(fileId: Int, filename: String, format: String) {
+    private func handleReadableFile(bookId: Int, fileId: Int, filename: String, format: String) {
         let fmt = format.lowercased()
-        let fileInfo = DocumentFileInfo(fileId: fileId, filename: filename)
-        if fmt == "pdf" {
-            self.activePDFFile = fileInfo
-        } else if fmt == "epub" {
-            self.activeEPUBFile = fileInfo
-        } else if ["cbz", "cbr", "zip"].contains(fmt) {
-            self.activeComicFile = fileInfo
+        let fileInfo = DocumentFileInfo(bookId: bookId, fileId: fileId, filename: filename)
+        if isReadableFormat(fmt) {
+            self.activeWebReaderFile = fileInfo
         } else {
             self.downloadError = "Format \(fmt) is not natively supported yet."
         }
@@ -1379,209 +1363,9 @@ struct ContentView: View {
 
 struct DocumentFileInfo: Identifiable {
     let id = UUID()
+    let bookId: Int
     let fileId: Int
     let filename: String
-}
-
-struct PDFKitView: UIViewRepresentable {
-    let document: PDFDocument
-    
-    func makeUIView(context: Context) -> PDFView {
-        let pdfView = PDFView()
-        pdfView.document = document
-        pdfView.autoScales = true
-        return pdfView
-    }
-    
-    func updateUIView(_ uiView: PDFView, context: Context) {}
-}
-
-struct PDFReaderView: View {
-    let fileId: Int
-    let filename: String
-    @State private var pdfDocument: PDFDocument? = nil
-    @State private var isLoading = true
-    @State private var loadError: String? = nil
-    @State private var isPasswordProtected = false
-    @State private var pdfPassword = ""
-    @State private var lockedDocument: PDFDocument? = nil
-    @Environment(\.dismiss) var dismiss
-    
-    var body: some View {
-        NavigationView {
-            ZStack {
-                if isLoading {
-                    VStack(spacing: 16) {
-                        ProgressView()
-                            .scaleEffect(1.5)
-                        Text("Streaming document...")
-                            .font(.headline)
-                            .foregroundColor(.secondary)
-                    }
-                } else if let error = loadError {
-                    VStack(spacing: 16) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 48))
-                            .foregroundColor(.red)
-                        Text("Failed to stream document")
-                            .font(.headline)
-                        Text(error)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-                    }
-                } else if let doc = pdfDocument {
-                    PDFKitView(document: doc)
-                }
-            }
-            .navigationTitle(filename)
-            .navigationBarTitleDisplayMode(.inline)
-            .navigationBarItems(leading: Button("Close") {
-                dismiss()
-            })
-            .onAppear(perform: startStream)
-            .alert("Password Required", isPresented: $isPasswordProtected) {
-                SecureField("Password", text: $pdfPassword)
-                Button("Unlock") {
-                    if let doc = lockedDocument {
-                        if doc.unlock(withPassword: pdfPassword) && doc.pageCount > 0 {
-                            self.pdfDocument = doc
-                            self.pdfPassword = ""
-                        } else {
-                            self.loadError = "Incorrect password or failed to unlock document."
-                            self.pdfPassword = ""
-                        }
-                    }
-                }
-                Button("Cancel", role: .cancel) {
-                    dismiss()
-                }
-            } message: {
-                Text("This PDF is password-encrypted. Please enter the password to unlock it.")
-            }
-        }
-    }
-    
-    private func startStream() {
-        Task {
-            do {
-                let fileManager = FileManager.default
-                let cacheDir = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!.standardizedFileURL
-                let previewDir = cacheDir.appendingPathComponent("Previews", isDirectory: true).standardizedFileURL
-                
-                if !fileManager.fileExists(atPath: previewDir.path) {
-                    try fileManager.createDirectory(at: previewDir, withIntermediateDirectories: true, attributes: nil)
-                }
-                
-                let targetURL = previewDir.appendingPathComponent(filename).standardizedFileURL
-                
-                let isMock = await APIClient.shared.isMockMode
-                if isMock {
-                    if !fileManager.fileExists(atPath: targetURL.path) {
-                        let pdfData = try await generateMockPDFData()
-                        try pdfData.write(to: targetURL)
-                    }
-                } else {
-                    if !fileManager.fileExists(atPath: targetURL.path) {
-                        let headers = await APIClient.shared.getAuthHeaders()
-                        let serverURLString = await APIClient.shared.getServerURL()
-                        let cleanBase = serverURLString.hasSuffix("/") ? String(serverURLString.dropLast()) : serverURLString
-                        guard let downloadURL = URL(string: "\(cleanBase)/api/v1/books/files/\(fileId)/serve") else {
-                            throw APIError.invalidURL
-                        }
-                        var request = URLRequest(url: downloadURL)
-                        for (key, value) in headers {
-                            request.setValue(value, forHTTPHeaderField: key)
-                        }
-                        
-                        let (tempURL, response) = try await URLSession.shared.download(for: request)
-                        guard let httpResponse = response as? HTTPURLResponse else {
-                            throw APIError.badResponse
-                        }
-                        if httpResponse.statusCode != 200 {
-                            throw NSError(domain: "PDFReader", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: "Server returned status code \(httpResponse.statusCode)"])
-                        }
-                        
-                        if fileManager.fileExists(atPath: targetURL.path) {
-                            try fileManager.removeItem(at: targetURL)
-                        }
-                        try fileManager.moveItem(at: tempURL.standardizedFileURL, to: targetURL)
-                    }
-                }
-                
-                guard let doc = PDFDocument(url: targetURL) else {
-                    var errorMsg = "Failed to load PDF document."
-                    if let data = try? Data(contentsOf: targetURL), data.count > 0 {
-                        let hexSig = data.prefix(4).map { String(format: "%02X", $0) }.joined()
-                        let preview = String(data: data.prefix(150), encoding: .utf8) ?? "binary data"
-                        errorMsg += "\nFile size: \(data.count) bytes\nHex signature: \(hexSig)\nFile preview: \(preview)"
-                    }
-                    throw NSError(domain: "PDFReaderView", code: 1, userInfo: [NSLocalizedDescriptionKey: errorMsg])
-                }
-                
-                if doc.isEncrypted {
-                    _ = doc.unlock(withPassword: "")
-                }
-                
-                if doc.isLocked {
-                    await MainActor.run {
-                        self.lockedDocument = doc
-                        self.isPasswordProtected = true
-                        self.isLoading = false
-                    }
-                } else {
-                    guard doc.pageCount > 0 else {
-                        var errorMsg = "PDF document contains 0 pages."
-                        if let data = try? Data(contentsOf: targetURL), data.count > 0 {
-                            let hexSig = data.prefix(4).map { String(format: "%02X", $0) }.joined()
-                            let preview = String(data: data.prefix(150), encoding: .utf8) ?? "binary data"
-                            errorMsg += "\nFile size: \(data.count) bytes\nHex signature: \(hexSig)\nFile preview: \(preview)"
-                        }
-                        throw NSError(domain: "PDFReaderView", code: 2, userInfo: [NSLocalizedDescriptionKey: errorMsg])
-                    }
-                    await MainActor.run {
-                        self.pdfDocument = doc
-                        self.isLoading = false
-                    }
-                }
-            } catch {
-                await MainActor.run {
-                    self.loadError = error.localizedDescription
-                    self.isLoading = false
-                }
-                let fileManager = FileManager.default
-                let targetURL = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!.standardizedFileURL.appendingPathComponent("Previews", isDirectory: true).appendingPathComponent(filename).standardizedFileURL
-                try? fileManager.removeItem(at: targetURL)
-            }
-        }
-    }
-    
-    private func generateMockPDFData() async throws -> Data {
-        let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 612, height: 792))
-        return renderer.pdfData { context in
-            context.beginPage()
-            let paragraphStyle = NSMutableParagraphStyle()
-            paragraphStyle.alignment = .center
-            let attributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.boldSystemFont(ofSize: 24),
-                .foregroundColor: UIColor.systemBlue,
-                .paragraphStyle: paragraphStyle
-            ]
-            let titleString = NSAttributedString(string: "BookOrbit E-Book Reader", attributes: attributes)
-            titleString.draw(in: CGRect(x: 50, y: 100, width: 512, height: 50))
-            
-            let bodyParagraphStyle = NSMutableParagraphStyle()
-            bodyParagraphStyle.lineSpacing = 6
-            let bodyAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 16),
-                .foregroundColor: UIColor.label,
-                .paragraphStyle: bodyParagraphStyle
-            ]
-            let bodyString = NSAttributedString(string: "\n\nThis is a mock PDF rendering generated dynamically in-memory for the file:\n\(filename)\n\nReal PDFs will stream from your BookOrbit server and render their full content here.", attributes: bodyAttributes)
-            bodyString.draw(in: CGRect(x: 50, y: 180, width: 512, height: 500))
-        }
-    }
 }
 
 struct SettingsView: View {
