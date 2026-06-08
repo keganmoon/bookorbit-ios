@@ -1,0 +1,26 @@
+# OS-specific files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/
+!*.xcodeproj/project.xcworkspace/contents.xcworkspacedata
+!*.xcodeproj/project.xcworkspace/xcshareddata/
+
+# Swift Package Manager
+.swiftpm/
+.build/
+
+# Compiled binary and logs
+BookOrbit/main
+raw_library_response.json
+raw_books_response.json
+liff.pdf
+test_download.epub
