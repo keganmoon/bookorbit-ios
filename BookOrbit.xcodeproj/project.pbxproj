@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		00BA836A8FC8484141406E12 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = DD2A3116C33AAD230FF3C965 /* ZIPFoundation */; };
 		436C15C6C1953E7303D57D1C /* EpubReaderLight in Frameworks */ = {isa = PBXBuildFile; productRef = 77B037B8CE5B07633D787CC8 /* EpubReaderLight */; };
+		42DEADBEEF00000000000002 /* WebReaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42DEADBEEF00000000000001 /* WebReaderView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -32,6 +33,7 @@
 		42379C8F2FD468AF00DF3105 /* BookOrbit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = BookOrbit.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		42379CA02FD468B100DF3105 /* BookOrbitTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BookOrbitTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		42379CAA2FD468B100DF3105 /* BookOrbitUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = BookOrbitUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		42DEADBEEF00000000000001 /* WebReaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebReaderView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -118,10 +120,6 @@
 				42379C912FD468AF00DF3105 /* BookOrbit */,
 			);
 			name = BookOrbit;
-			packageProductDependencies = (
-				DD2A3116C33AAD230FF3C965 /* ZIPFoundation */,
-				77B037B8CE5B07633D787CC8 /* EpubReaderLight */,
-			);
 			productName = BookOrbit;
 			productReference = 42379C8F2FD468AF00DF3105 /* BookOrbit.app */;
 			productType = "com.apple.product-type.application";
@@ -143,8 +141,6 @@
 				42379CA32FD468B100DF3105 /* BookOrbitTests */,
 			);
 			name = BookOrbitTests;
-			packageProductDependencies = (
-			);
 			productName = BookOrbitTests;
 			productReference = 42379CA02FD468B100DF3105 /* BookOrbitTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -166,8 +162,6 @@
 				42379CAD2FD468B100DF3105 /* BookOrbitUITests */,
 			);
 			name = BookOrbitUITests;
-			packageProductDependencies = (
-			);
 			productName = BookOrbitUITests;
 			productReference = 42379CAA2FD468B100DF3105 /* BookOrbitUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -596,37 +590,7 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		0C632C72863E58AE9C47A5CA /* XCRemoteSwiftPackageReference "epub-reader-light" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/pichukov/epub-reader-light";
-			requirement = {
-				branch = main;
-				kind = branch;
-			};
-		};
-		57328F339D4601F57B55FD42 /* XCRemoteSwiftPackageReference "ZIPFoundation" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/weichsel/ZIPFoundation";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.9.19;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
 
-/* Begin XCSwiftPackageProductDependency section */
-		77B037B8CE5B07633D787CC8 /* EpubReaderLight */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 0C632C72863E58AE9C47A5CA /* XCRemoteSwiftPackageReference "epub-reader-light" */;
-			productName = EpubReaderLight;
-		};
-		DD2A3116C33AAD230FF3C965 /* ZIPFoundation */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 57328F339D4601F57B55FD42 /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
-			productName = ZIPFoundation;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 42379C872FD468AF00DF3105 /* Project object */;
 }
