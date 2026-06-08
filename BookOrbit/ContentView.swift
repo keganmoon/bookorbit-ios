@@ -6,7 +6,7 @@ import WebKit
 struct ContentView: View {
     @StateObject private var audioPlayer = AudioPlayerManager.shared
     @AppStorage("app_theme") private var appTheme = 0
-    @AppStorage("show_all_libraries") private var showAllLibraries = false
+    @AppStorage("disabled_library_ids") private var disabledLibraryIds = ""
     @State private var isLoggedIn = false
     @State private var isShowingSettings = false
     @State private var isConnecting = false
@@ -47,20 +47,15 @@ struct ContentView: View {
     @State private var isLoadingShelves = false
     
     private var displayedLibraries: [Library] {
-        if showAllLibraries {
-            return libraries
-        } else {
-            return libraries.filter { library in
-                let nameLower = library.name.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-                if nameLower == "my audiobooks" || nameLower.contains("mock") {
-                    return true
-                }
-                return nameLower == "audiobooks" || nameLower == "audiobook"
-            }
-        }
+        let disabled = Set(disabledLibraryIds.split(separator: ",").map { String($0) })
+        return libraries.filter { !disabled.contains(String($0.id)) }
     }
     
     private var filteredContinueListening: [BookItem] {
+        let disabled = Set(disabledLibraryIds.split(separator: ",").map { String($0) })
+        let enabledTypes = Set(libraries.filter { !disabled.contains(String($0.id)) }.map { $0.type })
+        guard enabledTypes.contains("audiobooks") else { return [] }
+
         if searchText.isEmpty { return continueListening }
         return continueListening.filter {
             $0.title.localizedCaseInsensitiveContains(searchText) ||
@@ -69,6 +64,10 @@ struct ContentView: View {
     }
     
     private var filteredContinueReading: [BookItem] {
+        let disabled = Set(disabledLibraryIds.split(separator: ",").map { String($0) })
+        let enabledTypes = Set(libraries.filter { !disabled.contains(String($0.id)) }.map { $0.type })
+        guard enabledTypes.contains("books") || enabledTypes.contains("comics") else { return [] }
+
         if searchText.isEmpty { return continueReading }
         return continueReading.filter {
             $0.title.localizedCaseInsensitiveContains(searchText) ||
@@ -77,11 +76,38 @@ struct ContentView: View {
     }
     
     private var filteredRecentlyAdded: [BookItem] {
-        let base = showAllLibraries ? recentlyAdded : recentlyAdded.filter { $0.isAudiobook }
+        let disabled = Set(disabledLibraryIds.split(separator: ",").map { String($0) })
+        let enabledTypes = Set(libraries.filter { !disabled.contains(String($0.id)) }.map { $0.type })
+        
+        let base = recentlyAdded.filter { book in
+            if book.isAudiobook {
+                return enabledTypes.contains("audiobooks")
+            } else {
+                return enabledTypes.contains("books") || enabledTypes.contains("comics")
+            }
+        }
         if searchText.isEmpty { return base }
         return base.filter {
             $0.title.localizedCaseInsensitiveContains(searchText) ||
             ($0.authors?.localizedCaseInsensitiveContains(searchText) ?? false)
+        }
+    }
+
+    private var searchPrompt: String {
+        let disabled = Set(disabledLibraryIds.split(separator: ",").map { String($0) })
+        let enabledTypes = Set(libraries.filter { !disabled.contains(String($0.id)) }.map { $0.type })
+        
+        let hasAudio = enabledTypes.contains("audiobooks")
+        let hasBooks = enabledTypes.contains("books") || enabledTypes.contains("comics")
+        
+        if hasAudio && hasBooks {
+            return "Search audiobooks, ebooks & comics..."
+        } else if hasAudio {
+            return "Search audiobooks..."
+        } else if hasBooks {
+            return "Search ebooks & comics..."
+        } else {
+            return "Search..."
         }
     }
     
@@ -150,7 +176,8 @@ struct ContentView: View {
         }
         .sheet(isPresented: $isShowingSettings) {
             SettingsView(
-                showAllLibraries: $showAllLibraries,
+                libraries: libraries,
+                disabledLibraryIds: $disabledLibraryIds,
                 appTheme: $appTheme,
                 serverURL: serverURL,
                 username: username,
@@ -345,12 +372,12 @@ struct ContentView: View {
                                         Image(systemName: "folder.badge.minus")
                                             .font(.system(size: 48))
                                             .foregroundColor(.secondary)
-                                        Text(libraries.isEmpty ? "No libraries found on your server." : "No audiobook libraries displayed.")
+                                        Text(libraries.isEmpty ? "No libraries found on your server." : "All libraries are disabled in settings.")
                                             .font(.headline)
                                             .foregroundColor(.secondary)
                                         if !libraries.isEmpty {
-                                            Button("Show All Libraries") {
-                                                showAllLibraries = true
+                                            Button("Enable All Libraries") {
+                                                disabledLibraryIds = ""
                                             }
                                             .buttonStyle(.bordered)
                                         }
@@ -385,7 +412,7 @@ struct ContentView: View {
                                         dashboardShelf(title: "Continue Listening", books: filteredContinueListening)
                                     }
                                     
-                                    if showAllLibraries && !filteredContinueReading.isEmpty {
+                                    if !filteredContinueReading.isEmpty {
                                         dashboardShelf(title: "Continue Reading", books: filteredContinueReading)
                                     }
                                     
@@ -456,7 +483,7 @@ struct ContentView: View {
             .sheet(item: $selectedLibrary) { library in
                 libraryBrowserView(library: library)
             }
-            .searchable(text: $searchText, prompt: showAllLibraries ? "Search audiobooks & ebooks..." : "Search audiobooks...")
+            .searchable(text: $searchText, prompt: searchPrompt)
         }
     }
     
@@ -477,16 +504,6 @@ struct ContentView: View {
                         .font(.headline)
                         .foregroundColor(.primary)
                         .lineLimit(1)
-                    
-                    if library.type.lowercased() == "books" || library.type.lowercased() == "comics" {
-                        Text("WIP")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.orange)
-                            .cornerRadius(4)
-                    }
                 }
                 
                 Text(library.type.capitalized)
@@ -824,19 +841,10 @@ struct ContentView: View {
                 // E-Book Reader Dashboard (for books with readable files but no audiobook)
                 if !book.isAudiobook, let readableFile = book.files.first(where: { isReadableFormat($0.format) }) {
                     VStack(spacing: 16) {
-                        HStack(spacing: 6) {
-                            Text("E-BOOK READER")
-                                .font(.caption2)
-                                .fontWeight(.bold)
-                                .foregroundColor(.secondary)
-                            Text("WIP")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(Color.orange)
-                                .cornerRadius(4)
-                        }
+                        Text("E-BOOK READER")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.secondary)
                         
                         Button(action: {
                             let format = readableFile.format?.lowercased() ?? "epub"
@@ -922,16 +930,7 @@ struct ContentView: View {
                                             .foregroundColor(.accentColor)
                                             .cornerRadius(4)
                                         
-                                        if isReadableFormat(file.format) {
-                                            Text("WIP")
-                                                .font(.caption2)
-                                                .fontWeight(.bold)
-                                                .padding(.horizontal, 6)
-                                                .padding(.vertical, 2)
-                                                .background(Color.orange.opacity(0.15))
-                                                .foregroundColor(.orange)
-                                                .cornerRadius(4)
-                                        }
+                                        // Readable format indicator - no WIP label
                                         
                                         if let size = file.sizeBytes {
                                             Text(ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file))
@@ -1376,26 +1375,49 @@ struct DocumentFileInfo: Identifiable {
 
 struct SettingsView: View {
     @Environment(\.presentationMode) var presentationMode
-    @Binding var showAllLibraries: Bool
+    let libraries: [Library]
+    @Binding var disabledLibraryIds: String
     @Binding var appTheme: Int
     let serverURL: String
     let username: String
     let onLogout: () -> Void
     
+    private func isEnabledBinding(for libraryId: Int) -> Binding<Bool> {
+        Binding(
+            get: {
+                let disabled = disabledLibraryIds.split(separator: ",").map { String($0) }
+                return !disabled.contains(String(libraryId))
+            },
+            set: { enabled in
+                var disabled = Set(disabledLibraryIds.split(separator: ",").map { String($0) })
+                if enabled {
+                    disabled.remove(String(libraryId))
+                } else {
+                    disabled.insert(String(libraryId))
+                }
+                disabledLibraryIds = disabled.joined(separator: ",")
+            }
+        )
+    }
+    
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text("Library Filters")) {
-                    Toggle(isOn: $showAllLibraries) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Show All Libraries")
-                                .font(.body)
-                            Text("If disabled, only libraries named 'audiobooks' will be visible, optimizing the app for audiobook listening.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                if !libraries.isEmpty {
+                    Section(header: Text("Libraries Visited")) {
+                        ForEach(libraries) { library in
+                            Toggle(isOn: isEnabledBinding(for: library.id)) {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(library.name)
+                                        .font(.body)
+                                    Text(library.type.capitalized)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .padding(.vertical, 4)
                         }
                     }
-                    .padding(.vertical, 4)
                 }
                 
                 Section(header: Text("App Theme")) {
