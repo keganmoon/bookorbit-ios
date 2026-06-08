@@ -30,6 +30,7 @@ struct ContentView: View {
     // Document Reading States
     @State private var downloadError: String? = nil
     @State private var activeWebReaderFile: DocumentFileInfo? = nil
+    @State private var libraryWebReaderFile: DocumentFileInfo? = nil
     @State private var activelyDownloadingFileId: Int? = nil
     @State private var isLoadingDetail = false
     @State private var detailError: String? = nil
@@ -614,7 +615,7 @@ struct ContentView: View {
                 librarySearchText = "" // clear search when closing
             })
             .searchable(text: $librarySearchText, prompt: "Search in \(library.name)...")
-            .sheet(item: $activeWebReaderFile) { fileInfo in
+            .sheet(item: $libraryWebReaderFile) { fileInfo in
                 WebReaderSheetView(bookId: fileInfo.bookId, fileId: fileInfo.fileId, filename: fileInfo.filename, format: fileInfo.format)
             }
         }
@@ -1262,7 +1263,11 @@ struct ContentView: View {
         let fmt = format.lowercased()
         let fileInfo = DocumentFileInfo(bookId: bookId, fileId: fileId, filename: filename, format: fmt)
         if isReadableFormat(fmt) {
-            self.activeWebReaderFile = fileInfo
+            if selectedLibrary != nil {
+                self.libraryWebReaderFile = fileInfo
+            } else {
+                self.activeWebReaderFile = fileInfo
+            }
         } else {
             self.downloadError = "Format \(fmt) is not natively supported yet."
         }
