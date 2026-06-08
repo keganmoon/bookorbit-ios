@@ -1,6 +1,6 @@
 # BookOrbit iOS Application & CarPlay Integration
 
-Welcome to the native iOS application codebase for **BookOrbit**! This app is a premium, high-fidelity SwiftUI client designed for streaming audiobooks and reading digital publications from your self-hosted BookOrbit server. 
+Nativ iOS implementation for **BookOrbit**! SwiftUI client designed for streaming audiobooks and reading digital publications from your self-hosted BookOrbit server. 
 
 By default, the app is tailored to operate as a dedicated **Audiobook Player**, but it can be configured in settings to expose E-Book and Comic libraries as well.
 
