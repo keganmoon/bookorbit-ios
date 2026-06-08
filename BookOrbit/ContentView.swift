@@ -145,7 +145,7 @@ struct ContentView: View {
         .onAppear(perform: checkLoginStatus)
         .preferredColorScheme(preferredColorScheme)
         .sheet(item: $activeWebReaderFile) { fileInfo in
-            WebReaderSheetView(bookId: fileInfo.bookId, fileId: fileInfo.fileId, filename: fileInfo.filename)
+            WebReaderSheetView(bookId: fileInfo.bookId, fileId: fileInfo.fileId, filename: fileInfo.filename, format: fileInfo.format)
         }
         .sheet(isPresented: $isShowingSettings) {
             SettingsView(
@@ -615,7 +615,7 @@ struct ContentView: View {
             })
             .searchable(text: $librarySearchText, prompt: "Search in \(library.name)...")
             .sheet(item: $activeWebReaderFile) { fileInfo in
-                WebReaderSheetView(bookId: fileInfo.bookId, fileId: fileInfo.fileId, filename: fileInfo.filename)
+                WebReaderSheetView(bookId: fileInfo.bookId, fileId: fileInfo.fileId, filename: fileInfo.filename, format: fileInfo.format)
             }
         }
     }
@@ -1260,7 +1260,7 @@ struct ContentView: View {
     
     private func handleReadableFile(bookId: Int, fileId: Int, filename: String, format: String) {
         let fmt = format.lowercased()
-        let fileInfo = DocumentFileInfo(bookId: bookId, fileId: fileId, filename: filename)
+        let fileInfo = DocumentFileInfo(bookId: bookId, fileId: fileId, filename: filename, format: fmt)
         if isReadableFormat(fmt) {
             self.activeWebReaderFile = fileInfo
         } else {
@@ -1366,6 +1366,7 @@ struct DocumentFileInfo: Identifiable {
     let bookId: Int
     let fileId: Int
     let filename: String
+    let format: String
 }
 
 struct SettingsView: View {
